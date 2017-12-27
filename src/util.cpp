@@ -99,8 +99,8 @@ namespace boost {
 
 using namespace std;
 
-const char * const BITCOIN_CONF_FILENAME = "litecoin.conf";
-const char * const BITCOIN_PID_FILENAME = "litecoin.pid";
+const char * const BITCOIN_CONF_FILENAME = "digibyte.conf";
+const char * const BITCOIN_PID_FILENAME = "digibyte.pid";
 
 map<string, string> mapArgs;
 map<string, vector<string> > mapMultiArgs;
@@ -115,6 +115,8 @@ bool fLogTimeMicros = DEFAULT_LOGTIMEMICROS;
 bool fLogIPs = DEFAULT_LOGIPS;
 std::atomic<bool> fReopenDebugLog(false);
 CTranslationInterface translationInterface;
+
+int miningAlgo = 0;
 
 /** Init OpenSSL library multithreading support */
 static CCriticalSection** ppmutexOpenSSL;
@@ -435,7 +437,7 @@ static std::string FormatException(const std::exception* pex, const char* pszThr
     char pszModule[MAX_PATH] = "";
     GetModuleFileNameA(NULL, pszModule, sizeof(pszModule));
 #else
-    const char* pszModule = "litecoin";
+    const char* pszModule = "digibyte";
 #endif
     if (pex)
         return strprintf(
@@ -461,7 +463,7 @@ boost::filesystem::path GetDefaultDataDir()
     // Unix: ~/.bitcoin
 #ifdef WIN32
     // Windows
-    return GetSpecialFolderPath(CSIDL_APPDATA) / "Litecoin";
+    return GetSpecialFolderPath(CSIDL_APPDATA) / "DigiByte";
 #else
     fs::path pathRet;
     char* pszHome = getenv("HOME");
@@ -471,10 +473,10 @@ boost::filesystem::path GetDefaultDataDir()
         pathRet = fs::path(pszHome);
 #ifdef MAC_OSX
     // Mac
-    return pathRet / "Library/Application Support/Litecoin";
+    return pathRet / "Library/Application Support/DigiByte";
 #else
     // Unix
-    return pathRet / ".litecoin";
+    return pathRet / ".digibyte";
 #endif
 #endif
 }

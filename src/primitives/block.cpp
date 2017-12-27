@@ -6,6 +6,9 @@
 #include "primitives/block.h"
 
 #include "hash.h"
+#include "crypto/hashgroestl.h"
+#include "crypto/hashqubit.h"
+#include "crypto/hashskein.h"
 #include "crypto/scrypt.h"
 #include "tinyformat.h"
 #include "utilstrencodings.h"
@@ -16,11 +19,44 @@ uint256 CBlockHeader::GetHash() const
     return SerializeHash(*this);
 }
 
-uint256 CBlockHeader::GetPoWHash() const
+int CBlockHeader::GetAlgo() const
 {
-    uint256 thash;
-    scrypt_1024_1_1_256(BEGIN(nVersion), BEGIN(thash));
-    return thash;
+    switch (nVersion & BLOCK_VERSION_ALGO)
+    {
+        case 1:
+            return ALGO_SCRYPT;
+        case BLOCK_VERSION_SHA256D:
+            return ALGO_SHA256D;
+        case BLOCK_VERSION_GROESTL:
+            return ALGO_GROESTL;
+        case BLOCK_VERSION_SKEIN:
+            return ALGO_SKEIN;
+        case BLOCK_VERSION_QUBIT:
+            return ALGO_QUBIT;
+    }
+    return ALGO_SCRYPT;
+}
+
+uint256 CBlockHeader::GetPoWAlgoHash(int algo) const
+{
+    switch (algo)
+    {
+        case ALGO_SHA256D:
+            return GetHash();
+        case ALGO_SCRYPT:
+        {
+            uint256 thash;
+            scrypt_1024_1_1_256(BEGIN(nVersion), BEGIN(thash));
+            return thash;
+        }
+        case ALGO_GROESTL:
+            return HashGroestl(BEGIN(nVersion), END(nNonce));
+        case ALGO_SKEIN:
+            return HashSkein(BEGIN(nVersion), END(nNonce));
+        case ALGO_QUBIT:
+            return HashQubit(BEGIN(nVersion), END(nNonce));
+    }
+    return GetHash();
 }
 
 std::string CBlock::ToString() const
@@ -38,6 +74,28 @@ std::string CBlock::ToString() const
         s << "  " << vtx[i].ToString() << "\n";
     }
     return s.str();
+}
+
+std::string GetAlgoName(int Algo)
+{
+    switch (Algo)
+    {
+        case ALGO_SHA256D:
+            return std::string("sha256d");
+        case ALGO_SCRYPT:
+            return std::string("scrypt");
+        case ALGO_GROESTL:
+            return std::string("groestl");
+        case ALGO_SKEIN:
+            return std::string("skein");
+        case ALGO_QUBIT:
+            return std::string("qubit");
+        //case ALGO_EQUIHASH:
+            //return std::string("equihash");
+        //case ALGO_ETHASH:
+            //return std::string("ethash");
+    }
+    return std::string("unknown");       
 }
 
 int64_t GetBlockWeight(const CBlock& block)

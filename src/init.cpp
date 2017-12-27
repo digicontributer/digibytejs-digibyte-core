@@ -185,7 +185,7 @@ void Shutdown()
     /// for example if the data directory was found to be locked.
     /// Be sure that anything that writes files or flushes caches only does this if the respective
     /// module was initialized.
-    RenameThread("litecoin-shutoff");
+    RenameThread("digibyte-shutoff");
     mempool.AddTransactionsUpdated(1);
 
     StopHTTPRPC();
@@ -464,6 +464,7 @@ std::string HelpMessage(HelpMessageMode mode)
     if (showDebug)
         strUsage += HelpMessageOpt("-blockversion=<n>", "Override block version to test forking scenarios");
 
+    strUsage += HelpMessageOpt("-algo=<algo>", _("Mining algorithm: sha256d, scrypt, groestl, skein, qubit"));
     strUsage += HelpMessageGroup(_("RPC server options:"));
     strUsage += HelpMessageOpt("-server", _("Accept command line and JSON-RPC commands"));
     strUsage += HelpMessageOpt("-rest", strprintf(_("Accept public REST requests (default: %u)"), DEFAULT_REST_ENABLE));
@@ -485,8 +486,8 @@ std::string HelpMessage(HelpMessageMode mode)
 
 std::string LicenseInfo()
 {
-    const std::string URL_SOURCE_CODE = "<https://github.com/litecoin-project/litecoin>";
-    const std::string URL_WEBSITE = "<https://litecoin.org>";
+    const std::string URL_SOURCE_CODE = "<https://github.com/digibyte-project/digibyte>";
+    const std::string URL_WEBSITE = "<https://digibyte.org>";
     // todo: remove urls from translations on next change
     return CopyrightHolders(strprintf(_("Copyright (C) %i-%i"), 2011, COPYRIGHT_YEAR) + " ") + "\n" +
            "\n" +
@@ -590,7 +591,7 @@ void CleanupBlockRevFiles()
 void ThreadImport(std::vector<boost::filesystem::path> vImportFiles)
 {
     const CChainParams& chainparams = Params();
-    RenameThread("litecoin-loadblk");
+    RenameThread("digibyte-loadblk");
     CImportingNow imp;
 
     // -reindex
@@ -778,7 +779,7 @@ void InitLogging()
     fLogIPs = GetBoolArg("-logips", DEFAULT_LOGIPS);
 
     LogPrintf("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
-    LogPrintf("Litecoin version %s\n", FormatFullVersion());
+    LogPrintf("DigiByte version %s\n", FormatFullVersion());
 }
 
 /** Initialize bitcoin.
@@ -1190,6 +1191,28 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
             SetLimited(NET_TOR, false);
         }
     }
+
+    // Algo
+    std::string strAlgo = GetArg("-algo", "sha256d");
+    transform(strAlgo.begin(),strAlgo.end(),strAlgo.begin(),::tolower);
+    if (strAlgo == "sha" || strAlgo == "sha256" || strAlgo == "sha256d")
+        miningAlgo = ALGO_SHA256D;
+    else if (strAlgo == "scrypt")
+        miningAlgo = ALGO_SCRYPT;
+    else if (strAlgo == "groestl" || strAlgo == "groestlsha2")
+        miningAlgo = ALGO_GROESTL;
+    else if (strAlgo == "skein" || strAlgo == "skeinsha2")
+        miningAlgo = ALGO_SKEIN;
+    else if (strAlgo == "q2c" || strAlgo == "qubit")
+        miningAlgo = ALGO_QUBIT;
+    //else if (strAlgo == "equihash" || strAlgo == "equihash")
+        //miningAlgo = ALGO_EQUIHASH;
+    //else if (strAlgo == "ethash" || strAlgo == "ethash")
+        //miningAlgo = ALGO_ETHASH;
+    else
+        miningAlgo = ALGO_SHA256D;
+
+    LogPrintf("Selected Algo: %s\n", strAlgo);
 
     // see Step 2: parameter interactions for more information about these
     fListen = GetBoolArg("-listen", DEFAULT_LISTEN);

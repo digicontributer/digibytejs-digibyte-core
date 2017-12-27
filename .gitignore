@@ -1,12 +1,12 @@
 *.tar.gz
 
 *.exe
-src/litecoin
-src/litecoind
-src/litecoin-cli
-src/litecoin-tx
-src/test/test_litecoin
-src/qt/test/test_litecoin-qt
+src/digibyte
+src/digibyted
+src/digibyte-cli
+src/digibyte-tx
+src/test/test_digibyte
+src/qt/test/test_digibyte-qt
 
 # autoreconf
 Makefile.in
@@ -55,7 +55,7 @@ src/qt/test/moc*.cpp
 *.o
 *.o-*
 *.patch
-.litecoin
+.digibyte
 *.a
 *.pb.cc
 *.pb.h
@@ -74,12 +74,12 @@ src/qt/test/moc*.cpp
 # Compilation and Qt preprocessor part
 *.qm
 Makefile
-litecoin-qt
-Litecoin-Qt.app
+digibyte-qt
+DigiByte-Qt.app
 
 # Unit-tests
 Makefile.test
-litecoin-qt_test
+digibyte-qt_test
 src/test/buildenv.py
 
 # Resources cpp
