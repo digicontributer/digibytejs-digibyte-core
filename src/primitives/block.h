@@ -10,6 +10,32 @@
 #include "serialize.h"
 #include "uint256.h"
 
+enum { 
+    ALGO_SHA256D  = 0,
+    ALGO_SCRYPT   = 1,
+    ALGO_GROESTL  = 2,
+    ALGO_SKEIN    = 3,
+    ALGO_QUBIT    = 4,
+    NUM_ALGOS_IMPL };
+
+const int NUM_ALGOS = 5;
+
+enum {
+    // primary version
+    BLOCK_VERSION_DEFAULT        = 2, 
+
+    // algo
+    BLOCK_VERSION_ALGO           = (7 << 9),
+    BLOCK_VERSION_SCRYPT         = (1 << 9),
+    BLOCK_VERSION_SHA256D        = (1 << 9),
+    BLOCK_VERSION_GROESTL        = (2 << 9),
+    BLOCK_VERSION_SKEIN          = (3 << 9),
+    BLOCK_VERSION_QUBIT          = (4 << 9),
+};
+
+std::string GetAlgoName(int Algo);
+
+
 /** Nodes collect new transactions into a block, hash them into a hash tree,
  * and scan through nonce values to make the block's hash satisfy proof-of-work
  * requirements.  When they solve the proof-of-work, they broadcast the block
@@ -60,9 +86,35 @@ public:
         return (nBits == 0);
     }
 
+    inline void SetAlgo(int algo)
+    {
+        switch(algo)
+        {
+            case ALGO_SHA256D:
+                nVersion |= BLOCK_VERSION_SHA256D;
+                break;
+            case ALGO_SCRYPT:
+                nVersion |= BLOCK_VERSION_SCRYPT;
+                break;
+            case ALGO_GROESTL:
+                nVersion |= BLOCK_VERSION_GROESTL;
+                break;
+            case ALGO_SKEIN:
+                nVersion |= BLOCK_VERSION_SKEIN;
+                break;
+            case ALGO_QUBIT:
+                nVersion |= BLOCK_VERSION_QUBIT;
+                break;
+            default:
+                break;
+        }
+    }
+    
+    int GetAlgo() const;
+
     uint256 GetHash() const;
 
-    uint256 GetPoWHash() const;
+    uint256 GetPoWAlgoHash(int algo) const;
 
     int64_t GetBlockTime() const
     {

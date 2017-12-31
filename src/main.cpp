@@ -51,7 +51,7 @@
 using namespace std;
 
 #if defined(NDEBUG)
-# error "Litecoin cannot be compiled without assertions."
+# error "DigiByte cannot be compiled without assertions."
 #endif
 
 /**
@@ -119,7 +119,7 @@ static void CheckBlockIndex(const Consensus::Params& consensusParams);
 /** Constant stuff for coinbase transactions we create: */
 CScript COINBASE_FLAGS;
 
-const string strMessageMagic = "Litecoin Signed Message:\n";
+const string strMessageMagic = "DigiByte Signed Message:\n";
 
 // Internal stuff
 namespace {
@@ -1558,7 +1558,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
         // Remove conflicting transactions from the mempool
         BOOST_FOREACH(const CTxMemPool::txiter it, allConflicting)
         {
-            LogPrint("mempool", "replacing tx %s with %s for %s LTC additional fees, %d delta bytes\n",
+            LogPrint("mempool", "replacing tx %s with %s for %s DGB additional fees, %d delta bytes\n",
                     it->GetTx().GetHash().ToString(),
                     hash.ToString(),
                     FormatMoney(nModifiedFees - nConflictingFees),
@@ -1777,7 +1777,8 @@ bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos, const Consensus:
     }
 
     // Check the header
-    if (!CheckProofOfWork(block.GetPoWHash(), block.nBits, consensusParams))
+    int nAlgo = block.GetAlgo();
+    if (!CheckProofOfWork(block.GetPoWAlgoHash(nAlgo), block.nBits, consensusParams))
         return error("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
 
     return true;
@@ -1793,17 +1794,77 @@ bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus
     return true;
 }
 
+CAmount GetDGBSubsidy(int nHeight, const Consensus::Params& consensusParams) {
+	// thanks to RealSolid & WDC for helping out with this code
+	CAmount qSubsidy;
+    
+	if (nHeight < consensusParams.alwaysUpdateDiffChangeTarget)
+	{
+		qSubsidy = 8000*COIN;
+		int blocks = nHeight - consensusParams.nDiffChangeTarget;
+		int weeks = (blocks / consensusParams.patchBlockRewardDuration)+1;
+		//decrease reward by 0.5% every 10080 blocks
+		for(int i = 0; i < weeks; i++)  qSubsidy -= (qSubsidy/200);
+	}
+	else if(nHeight<consensusParams.workComputationChangeTarget)
+	{
+		qSubsidy = 2459*COIN;
+		int blocks = nHeight - consensusParams.alwaysUpdateDiffChangeTarget;
+		int weeks = (blocks / consensusParams.patchBlockRewardDuration2)+1;
+		//decrease reward by 1% every month
+		for(int i = 0; i < weeks; i++)  qSubsidy -= (qSubsidy/100);
+	}
+	else
+	{
+		//hard fork point: 1.43M
+		//subsidy at hard fork: 2157
+		//monthly decay factor: 98884/100000
+		//last block number: 41668798
+		//expected years after hard fork: 19.1395
+
+		qSubsidy = 2157*COIN/2;
+		int64_t blocks = nHeight - consensusParams.workComputationChangeTarget;
+		int64_t months = blocks*15/(3600*24*365/12);
+		for(int64_t i = 0; i < months; i++)
+		{
+			qSubsidy*=98884;
+			qSubsidy/=100000;
+		}
+	}
+
+	return qSubsidy;
+
+}
+
+
 CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams)
 {
-    int halvings = nHeight / consensusParams.nSubsidyHalvingInterval;
-    // Force block reward to zero when right shift is undefined.
-    if (halvings >= 64)
-        return 0;
+	CAmount nSubsidy = COIN;
+    
+	if(nHeight < consensusParams.nDiffChangeTarget) {
+		//this is pre-patch, reward is 8000.
+		nSubsidy = 8000 * COIN;
 
-    CAmount nSubsidy = 50 * COIN;
-    // Subsidy is cut in half every 210,000 blocks which will occur approximately every 4 years.
-    nSubsidy >>= halvings;
-    return nSubsidy;
+		if(nHeight < 1440)  //1440
+		{
+			nSubsidy = 72000 * COIN;
+		}
+		else if(nHeight < 5760)  //5760
+		{
+			nSubsidy = 16000 * COIN;
+		}
+
+	} else {
+		//patch takes effect after 67,200 blocks solved
+		nSubsidy = GetDGBSubsidy(nHeight, consensusParams);
+	}
+
+	//make sure the reward is at least 1 DGB
+	if(nSubsidy < COIN) {
+		nSubsidy = COIN;
+	}
+
+	return nSubsidy;
 }
 
 bool IsInitialBlockDownload()
@@ -2049,10 +2110,17 @@ bool CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoins
 
             // If prev is coinbase, check that it's matured
             if (coins->IsCoinBase()) {
-                if (nSpendHeight - coins->nHeight < COINBASE_MATURITY)
-                    return state.Invalid(false,
-                        REJECT_INVALID, "bad-txns-premature-spend-of-coinbase",
-                        strprintf("tried to spend coinbase at depth %d", nSpendHeight - coins->nHeight));
+                if (coins->nHeight < multiAlgoDiffChangeTarget) {
+                    if (nSpendHeight - coins->nHeight < COINBASE_MATURITY)
+                        return state.Invalid(false,
+                            REJECT_INVALID, "bad-txns-premature-spend-of-coinbase",
+                            strprintf("tried to spend coinbase at depth %d", nSpendHeight - coins->nHeight));
+                } else {
+                    if (nSpendHeight - coins->nHeight < COINBASE_MATURITY_2)
+                        return state.Invalid(false,
+                            REJECT_INVALID, "bad-txns-premature-spend-of-coinbase",
+                            strprintf("tried to spend coinbase at depth %d", nSpendHeight - coins->nHeight));
+                }
             }
 
             // Check for negative or overflow input values
@@ -2423,28 +2491,57 @@ bool FindUndoPos(CValidationState &state, int nFile, CDiskBlockPos &pos, unsigne
 static CCheckQueue<CScriptCheck> scriptcheckqueue(128);
 
 void ThreadScriptCheck() {
-    RenameThread("litecoin-scriptch");
+    RenameThread("digibyte-scriptch");
     scriptcheckqueue.Thread();
 }
 
 // Protected by cs_main
 VersionBitsCache versionbitscache;
 
-int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Params& params)
+int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Params& params, int algo)
 {
     LOCK(cs_main);
-    int32_t nVersion = VERSIONBITS_TOP_BITS;
-
+    int32_t nVersion = VERSIONBITS_TOP_BITS | BLOCK_VERSION_DEFAULT;
     for (int i = 0; i < (int)Consensus::MAX_VERSION_BITS_DEPLOYMENTS; i++) {
-        ThresholdState state = VersionBitsState(pindexPrev, params, (Consensus::DeploymentPos)i, versionbitscache);
+        ThresholdState state = VersionBitsState(pindexPrev, params, (Consensus::DeploymentPos)i, versionbitscache); 
         if (state == THRESHOLD_LOCKED_IN || state == THRESHOLD_STARTED) {
             nVersion |= VersionBitsMask(params, (Consensus::DeploymentPos)i);
         }
-    }
+    } 
+    switch (algo)
+    {
+        case ALGO_SCRYPT:
+        break;
+        case ALGO_SHA256D:
+        nVersion |= BLOCK_VERSION_SHA256D;
+        break;
+        case ALGO_GROESTL:
+        nVersion |= BLOCK_VERSION_GROESTL;
+        break;
+        case ALGO_SKEIN:
+        nVersion |= BLOCK_VERSION_SKEIN;
+        break;
+        case ALGO_QUBIT:
+        nVersion |= BLOCK_VERSION_QUBIT;
+        break;
+        //case ALGO_EQUIHASH:
+        //nVersion |= BLOCK_VERSION_EQUIHASH;
+        //break;
+        //case ALGO_ETHASH:
+        //nVersion |= BLOCK_VERSION_ETHASH;
+        //break;
+        default:
+        return nVersion;
+    }  
 
     return nVersion;
 }
-
+bool isMultiAlgoVersion(int nVersion){
+     if((nVersion & 0xfffU) == 514 || (nVersion & 0xfffU) == 1026 || (nVersion & 0xfffU) == 1538 || (nVersion & 0xfffU) == 2050) {
+         return true;
+     }
+     return false;
+ }
 /**
  * Threshold condition checker that triggers when unknown versionbits are seen on the network.
  */
@@ -2463,9 +2560,10 @@ public:
 
     bool Condition(const CBlockIndex* pindex, const Consensus::Params& params) const
     {
+        int nAlgo = pindex->GetAlgo();
         return ((pindex->nVersion & VERSIONBITS_TOP_MASK) == VERSIONBITS_TOP_BITS) &&
                ((pindex->nVersion >> bit) & 1) != 0 &&
-               ((ComputeBlockVersion(pindex->pprev, params) >> bit) & 1) == 0;
+               ((ComputeBlockVersion(pindex->pprev, params, nAlgo) >> bit) & 1) == 0;
     }
 };
 
@@ -2997,8 +3095,9 @@ void static UpdateTip(CBlockIndex *pindexNew, const CChainParams& chainParams) {
         // Check the version of the last 100 blocks to see if we need to upgrade:
         for (int i = 0; i < 100 && pindex != NULL; i++)
         {
-            int32_t nExpectedVersion = ComputeBlockVersion(pindex->pprev, chainParams.GetConsensus());
-            if (pindex->nVersion > VERSIONBITS_LAST_OLD_BLOCK_VERSION && (pindex->nVersion & ~nExpectedVersion) != 0)
+            int nAlgo = pindex->GetAlgo();
+            int32_t nExpectedVersion = ComputeBlockVersion(pindex->pprev, chainParams.GetConsensus(), nAlgo);
+            if (pindex->nVersion > VERSIONBITS_LAST_OLD_BLOCK_VERSION && (pindex->nVersion & ~nExpectedVersion) != 0 && !isMultiAlgoVersion(pindex->nVersion))
                 ++nUpgraded;
             pindex = pindex->pprev;
         }
@@ -3648,7 +3747,8 @@ bool FindUndoPos(CValidationState &state, int nFile, CDiskBlockPos &pos, unsigne
 bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW)
 {
     // Check proof of work matches claimed amount
-    if (fCheckPOW && !CheckProofOfWork(block.GetPoWHash(), block.nBits, consensusParams))
+    int nAlgo = block.GetAlgo();
+    if (fCheckPOW && !CheckProofOfWork(block.GetPoWAlgoHash(nAlgo), block.nBits, consensusParams))
         return state.DoS(50, false, REJECT_INVALID, "high-hash", false, "proof of work failed");
 
     return true;
@@ -3792,7 +3892,7 @@ std::vector<unsigned char> GenerateCoinbaseCommitment(CBlock& block, const CBloc
 bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, CBlockIndex * const pindexPrev, int64_t nAdjustedTime)
 {
     // Check proof of work
-    if (block.nBits != GetNextWorkRequired(pindexPrev, &block, consensusParams))
+    if (block.nBits != GetNextWorkRequired(pindexPrev, &block, consensusParams, block.GetAlgo()))
         return state.DoS(100, false, REJECT_INVALID, "bad-diffbits", false, "incorrect proof of work");
 
     // Check timestamp against prev
@@ -3802,33 +3902,6 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& sta
     // Check timestamp
     if (block.GetBlockTime() > nAdjustedTime + 2 * 60 * 60)
         return state.Invalid(false, REJECT_INVALID, "time-too-new", "block timestamp too far in the future");
-
-    // Litecoin: Reject block.nVersion=1 blocks (mainnet >= 710000, testnet >= 400000, regtest uses supermajority)
-    const int nHeight = pindexPrev->nHeight+1;    
-    bool enforceV2 = false;
-    if (block.nVersion < 2) {
-        if (consensusParams.BIP34Height != -1) {
-            // Mainnet 710k, Testnet 400k
-            if (nHeight >= consensusParams.BIP34Height)
-                enforceV2 = true;
-        }
-        else {
-            // Regtest and Unittest: use Bitcoin's supermajority rule
-            if (IsSuperMajority(2, pindexPrev, consensusParams.nMajorityRejectBlockOutdated, consensusParams))
-                enforceV2 = true;
-        }
-    }
-
-    if (enforceV2) {
-        return state.Invalid(false, REJECT_OBSOLETE, strprintf("bad-version(0x%08x)", block.nVersion),
-                             strprintf("rejected nVersion=0x%08x block", block.nVersion));
-    }
-
-    // Reject outdated version blocks when 95% (75% on testnet) of the network has upgraded:
-    for (int32_t version = 3; version < 5; ++version) // check for version 2, 3 and 4 upgrades
-        if (block.nVersion < version && IsSuperMajority(version, pindexPrev, consensusParams.nMajorityRejectBlockOutdated, consensusParams))
-            return state.Invalid(false, REJECT_OBSOLETE, strprintf("bad-version(0x%08x)", version - 1),
-                                 strprintf("rejected nVersion=0x%08x block", version - 1));
 
     // Reject outdated version blocks when 75% of the network (BIP9 rules) has upgraded:
     if (block.nVersion < VERSIONBITS_TOP_BITS && IsWitnessEnabled(pindexPrev, consensusParams))
@@ -3860,7 +3933,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
         }
     }
 
-    // Litecoin: (mainnet >= 710000, regtest and testnet uses supermajority)
+    // DigiByte: (mainnet >= 710000, regtest and testnet uses supermajority)
     // Enforce block.nVersion=2 rule that the coinbase starts with serialized block height
     // if 750 of the last 1,000 blocks are version 2 or greater (51/100 if testnet):
     bool checkHeightMismatch = false;
