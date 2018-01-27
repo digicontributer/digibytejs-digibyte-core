@@ -24,8 +24,8 @@ static CBlock CreateGenesisBlock(const char* pszTimestamp, const CScript& genesi
     txNew.vin.resize(1);
     txNew.vout.resize(1);
     txNew.vin[0].scriptSig = CScript() << 486604799 << CScriptNum(4) << std::vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp));
-    txNew.vout[0].nValue = genesisReward;
-    txNew.vout[0].scriptPubKey = genesisOutputScript;
+    txNew.vout[0].nValue = 8000;
+    txNew.vout[0].scriptPubKey = CScript() << 0x0 << OP_CHECKSIG;
 
     CBlock genesis;
     genesis.nTime    = nTime;
@@ -183,6 +183,7 @@ public:
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,30);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,5);
+        base58Prefixes[SCRIPT_ADDRESS2] = std::vector<unsigned char>(1,8);
         base58Prefixes[SECRET_KEY] =     std::vector<unsigned char>(1,128);
         base58Prefixes[SECRET_KEY_OLD] = std::vector<unsigned char>(1,158);
         base58Prefixes[EXT_PUBLIC_KEY] = boost::assign::list_of(0x04)(0x88)(0xB2)(0x1E).convert_to_container<std::vector<unsigned char> >();
@@ -233,15 +234,72 @@ class CTestNetParams : public CChainParams {
 public:
     CTestNetParams() {
         strNetworkID = "test";
-        consensus.nSubsidyHalvingInterval = 840000;
+        consensus.powLimit = ArithToUint256(~arith_uint256(0) >> 20);
         consensus.nMajorityEnforceBlockUpgrade = 51;
         consensus.nMajorityRejectBlockOutdated = 75;
         consensus.nMajorityWindow = 100;
         consensus.BIP34Height = -1;
         consensus.BIP34Hash = uint256S("");
-        consensus.powLimit = uint256S("00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
-        consensus.nPowTargetTimespan = 3.5 * 24 * 60 * 60; // 3.5 days
-        consensus.nPowTargetSpacing = 2.5 * 60;
+
+        consensus.nPowTargetTimespan = 14 * 24 * 60 * 60; // two weeks
+        consensus.nPowTargetSpacing = 60 / 4;
+
+        /** Current DigiByte 2017 Difficulty Adjustment Code & Block Target. See explanation here: 
+        https://github.com/digibyte/digibyte-old/pull/36 
+        https://github.com/digibyte/digibyte-old/pull/15
+        Difficulty is updated for every algorithm on every block, not just the algorithm that was solved. 
+        In particular, the difficulty of one algorithm may decrease when a different algorithm is solved. 
+        An attacker with 90% of the SHA256D hashrate and 33% of each of the other 4 algorithms would 
+        have insufficient hashpower to mount a 51% attack.
+        - MultiAlgo POW (Scrypt, SHA256D, Qubit, Skein and Groestl) algorithms
+        - 15 Second Block Target (1.5 min per Algo)
+        - ~21 billion total coins in 21 years
+        - 8000 coins per block, reduces by 0.5% every 10,080 blocks starting 2/28/14 1% monthly reduction
+        - Difficulty retarget every 1 block per algo (1.5 Min)
+        **/
+
+        consensus.nTargetTimespan =  0.10 * 24 * 60 * 60; // 2.4 hours
+        consensus.nTargetSpacing = 60; // 60 seconds
+        consensus.nInterval = consensus.nTargetTimespan / consensus.nTargetSpacing;
+        consensus.nDiffChangeTarget = 67200; // DigiShield Hard Fork Block BIP34Height 67,200
+
+        // Old 1% monthly DGB Reward before 15 secon block change
+        consensus.patchBlockRewardDuration = 10080; //10080; - No longer used
+        //4 blocks per min, x60 minutes x 24hours x 14 days = 80,160 blocks for 0.5% reduction in DGB reward supply - No longer used
+        consensus.patchBlockRewardDuration2 = 80160; //80160;
+        consensus.nTargetTimespanRe = 1*60; // 60 Seconds
+        consensus.nTargetSpacingRe = 1*60; // 60 seconds
+        consensus.nIntervalRe = consensus.nTargetTimespanRe / consensus.nTargetSpacingRe; // 1 block
+
+        consensus.nAveragingInterval = 10; // 10 blocks
+        consensus.multiAlgoTargetSpacing = 30*5; // NUM_ALGOS * 30 seconds
+        consensus.multiAlgoTargetSpacingV4 = 15*5; // NUM_ALGOS * 15 seconds
+        consensus.nAveragingTargetTimespan = consensus.nAveragingInterval * consensus.multiAlgoTargetSpacing; // 10* NUM_ALGOS * 30
+        consensus.nAveragingTargetTimespanV4 = consensus.nAveragingInterval * consensus.multiAlgoTargetSpacingV4; // 10 * NUM_ALGOS * 15
+
+        consensus.nMaxAdjustDown = 40; // 40% adjustment down
+        consensus.nMaxAdjustUp = 20; // 20% adjustment up
+        consensus.nMaxAdjustDownV3 = 16; // 16% adjustment down
+        consensus.nMaxAdjustUpV3 = 8; // 8% adjustment up
+        consensus.nMaxAdjustDownV4 = 16;
+        consensus.nMaxAdjustUpV4 = 8;
+
+        consensus.nMinActualTimespan = consensus.nAveragingTargetTimespan * (100 - consensus.nMaxAdjustUp) / 100;
+        consensus.nMaxActualTimespan = consensus.nAveragingTargetTimespan * (100 + consensus.nMaxAdjustDown) / 100;
+        consensus.nMinActualTimespanV3 = consensus.nAveragingTargetTimespan * (100 - consensus.nMaxAdjustUpV3) / 100;
+        consensus.nMaxActualTimespanV3 = consensus.nAveragingTargetTimespan * (100 + consensus.nMaxAdjustDownV3) / 100;
+        consensus.nMinActualTimespanV4 = consensus.nAveragingTargetTimespanV4 * (100 - consensus.nMaxAdjustUpV4) / 100;
+        consensus.nMaxActualTimespanV4 = consensus.nAveragingTargetTimespanV4 * (100 + consensus.nMaxAdjustDownV4) / 100;
+
+        consensus.nLocalTargetAdjustment = 4; //target adjustment per algo
+        consensus.nLocalDifficultyAdjustment = 4; //difficulty adjustment per algo
+
+
+        // DigiByte Hard Fork Block Heights
+        consensus.multiAlgoDiffChangeTarget = 145000; // Block 145,000 MultiAlgo Hard Fork
+        consensus.alwaysUpdateDiffChangeTarget = 400000; // Block 400,000 MultiShield Hard Fork
+        consensus.workComputationChangeTarget = 1430000; // Block 1,430,000 DigiSpeed Hard Fork
+
         consensus.fPowAllowMinDifficultyBlocks = true;
         consensus.fPowNoRetargeting = false;
         consensus.nRuleChangeActivationThreshold = 1512; // 75% for testchains
@@ -261,29 +319,28 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].nTimeout = 1517356801; // January 31st, 2018
 
         // The best chain should have at least this much work.
-        consensus.nMinimumChainWork = uint256S("0x00000000000000000000000000000000000000000000000000000000872d04d7");
+        consensus.nMinimumChainWork = uint256S("0x308ea0711d5763be2995670dd9ca9872753561285a84da1d58be58acaa822252");
 
         pchMessageStart[0] = 0xfd;
-        pchMessageStart[1] = 0xd2;
-        pchMessageStart[2] = 0xc8;
-        pchMessageStart[3] = 0xf1;
-        nDefaultPort = 19335;
+        pchMessageStart[1] = 0xc8;
+        pchMessageStart[2] = 0xbd;
+        pchMessageStart[3] = 0xdd;
+        nDefaultPort = 12025;
         nPruneAfterHeight = 1000;
 
-        genesis = CreateGenesisBlock(1392796564, 961533, 0x1d00ffff, 1, 50 * COIN);
+        genesis = CreateGenesisBlock(1516939474, 2411473, 0x1e0ffff0, 1, 8000 * COIN);
         consensus.hashGenesisBlock = genesis.GetHash();
-        //assert(consensus.hashGenesisBlock == uint256S("0x4966625a4b2851d9fdee139e56211a0d88575f59ed816ff5e6a63deb4e3e29a0"));
-        //assert(genesis.hashMerkleRoot == uint256S("0x97ddfbbae6be97fd6cdf3e7ca13232a3afff2353e29badfab7f73011edd4ced9"));
+        assert(consensus.hashGenesisBlock == uint256S("0x308ea0711d5763be2995670dd9ca9872753561285a84da1d58be58acaa822252"));
+        assert(genesis.hashMerkleRoot == uint256S("0x72ddd9496b004221ed0557358846d9248ecd4c440ebd28ed901efc18757d0fad"));
 
         vFixedSeeds.clear();
         vSeeds.clear();
         // nodes with support for servicebits filtering should be at the top
-        vSeeds.push_back(CDNSSeedData("digibytetools.com", "testnet-seed.digibytetools.com"));
-        vSeeds.push_back(CDNSSeedData("loshan.co.uk", "seed-b.digibyte.loshan.co.uk", true));
+        vSeeds.push_back(CDNSSeedData("testnet-seed.digibyteprojects.com", "testnet-seed.digibyteprojects.com"));
 
-        base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,111);
-        base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,196);
-        base58Prefixes[SECRET_KEY] =     std::vector<unsigned char>(1,239);
+        base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,126);
+        base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,140);
+        base58Prefixes[SECRET_KEY] =     std::vector<unsigned char>(1,254);
         base58Prefixes[EXT_PUBLIC_KEY] = boost::assign::list_of(0x04)(0x35)(0x87)(0xCF).convert_to_container<std::vector<unsigned char> >();
         base58Prefixes[EXT_SECRET_KEY] = boost::assign::list_of(0x04)(0x35)(0x83)(0x94).convert_to_container<std::vector<unsigned char> >();
 
@@ -298,10 +355,10 @@ public:
 
         checkpointData = (CCheckpointData) {
             boost::assign::map_list_of
-            ( 2056, uint256S("0x17748a31ba97afdc9a4f86837a39d287e3e7c7290a08a1d816c5969c78a83289")),
-            1487036370,
-            2057,
-            576
+            ( 0, uint256S("0x000000002a936ca763904c3c35fce2f3556c559c0214345d31b1bcebf76acb70")),
+            1516939474,
+            2411473,
+            1
         };
 
     }
