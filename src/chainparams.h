@@ -46,6 +46,7 @@ public:
     enum Base58Type {
         PUBKEY_ADDRESS,
         SCRIPT_ADDRESS,
+        SCRIPT_ADDRESS2,
         SECRET_KEY,
         SECRET_KEY_OLD,
         EXT_PUBLIC_KEY,
