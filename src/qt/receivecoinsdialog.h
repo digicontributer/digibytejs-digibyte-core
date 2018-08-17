@@ -1,11 +1,11 @@
-// Copyright (c) 2011-2015 The Bitcoin Core developers
+// Copyright (c) 2011-2017 The DigiByte Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_QT_RECEIVECOINSDIALOG_H
-#define BITCOIN_QT_RECEIVECOINSDIALOG_H
+#ifndef DIGIBYTE_QT_RECEIVECOINSDIALOG_H
+#define DIGIBYTE_QT_RECEIVECOINSDIALOG_H
 
-#include "guiutil.h"
+#include <qt/guiutil.h>
 
 #include <QDialog>
 #include <QHeaderView>
@@ -15,7 +15,6 @@
 #include <QPoint>
 #include <QVariant>
 
-class OptionsModel;
 class PlatformStyle;
 class WalletModel;
 
@@ -27,7 +26,7 @@ QT_BEGIN_NAMESPACE
 class QModelIndex;
 QT_END_NAMESPACE
 
-/** Dialog for requesting payment of bitcoins */
+/** Dialog for requesting payment of digibytes */
 class ReceiveCoinsDialog : public QDialog
 {
     Q_OBJECT
@@ -60,6 +59,7 @@ private:
     QMenu *contextMenu;
     const PlatformStyle *platformStyle;
 
+    QModelIndex selectedRow();
     void copyColumnToClipboard(int column);
     virtual void resizeEvent(QResizeEvent *event);
 
@@ -71,9 +71,10 @@ private Q_SLOTS:
     void recentRequestsView_selectionChanged(const QItemSelection &selected, const QItemSelection &deselected);
     void updateDisplayUnit();
     void showMenu(const QPoint &point);
+    void copyURI();
     void copyLabel();
     void copyMessage();
     void copyAmount();
 };
 
-#endif // BITCOIN_QT_RECEIVECOINSDIALOG_H
+#endif // DIGIBYTE_QT_RECEIVECOINSDIALOG_H

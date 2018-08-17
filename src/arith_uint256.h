@@ -1,10 +1,10 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2015 The Bitcoin developers
+// Copyright (c) 2009-2017 The DigiByte Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_ARITH_UINT256_H
-#define BITCOIN_ARITH_UINT256_H
+#ifndef DIGIBYTE_ARITH_UINT256_H
+#define DIGIBYTE_ARITH_UINT256_H
 
 #include <assert.h>
 #include <cstring>
@@ -25,18 +25,22 @@ template<unsigned int BITS>
 class base_uint
 {
 protected:
-    enum { WIDTH=BITS/32 };
+    static constexpr int WIDTH = BITS / 32;
     uint32_t pn[WIDTH];
 public:
 
     base_uint()
     {
+        static_assert(BITS/32 > 0 && BITS%32 == 0, "Template parameter BITS must be a positive multiple of 32.");
+
         for (int i = 0; i < WIDTH; i++)
             pn[i] = 0;
     }
 
     base_uint(const base_uint& b)
     {
+        static_assert(BITS/32 > 0 && BITS%32 == 0, "Template parameter BITS must be a positive multiple of 32.");
+
         for (int i = 0; i < WIDTH; i++)
             pn[i] = b.pn[i];
     }
@@ -50,6 +54,8 @@ public:
 
     base_uint(uint64_t b)
     {
+        static_assert(BITS/32 > 0 && BITS%32 == 0, "Template parameter BITS must be a positive multiple of 32.");
+
         pn[0] = (unsigned int)b;
         pn[1] = (unsigned int)(b >> 32);
         for (int i = 2; i < WIDTH; i++)
@@ -57,14 +63,6 @@ public:
     }
 
     explicit base_uint(const std::string& str);
-
-    bool operator!() const
-    {
-        for (int i = 0; i < WIDTH; i++)
-            if (pn[i] != 0)
-                return false;
-        return true;
-    }
 
     const base_uint operator~() const
     {
@@ -79,7 +77,7 @@ public:
         base_uint ret;
         for (int i = 0; i < WIDTH; i++)
             ret.pn[i] = ~pn[i];
-        ret++;
+        ++ret;
         return ret;
     }
 
@@ -168,13 +166,14 @@ public:
 
     base_uint& operator*=(uint32_t b32);
     base_uint& operator*=(const base_uint& b);
+    base_uint& operator/=(uint32_t b32);
     base_uint& operator/=(const base_uint& b);
 
     base_uint& operator++()
     {
         // prefix operator
         int i = 0;
-        while (++pn[i] == 0 && i < WIDTH-1)
+        while (i < WIDTH && ++pn[i] == 0)
             i++;
         return *this;
     }
@@ -191,7 +190,7 @@ public:
     {
         // prefix operator
         int i = 0;
-        while (--pn[i] == (uint32_t)-1 && i < WIDTH-1)
+        while (i < WIDTH && --pn[i] == (uint32_t)-1)
             i++;
         return *this;
     }
@@ -217,6 +216,7 @@ public:
     friend inline const base_uint operator>>(const base_uint& a, int shift) { return base_uint(a) >>= shift; }
     friend inline const base_uint operator<<(const base_uint& a, int shift) { return base_uint(a) <<= shift; }
     friend inline const base_uint operator*(const base_uint& a, uint32_t b) { return base_uint(a) *= b; }
+    friend inline const base_uint operator/(const base_uint& a, uint32_t b) { return base_uint(a) /= b; }
     friend inline bool operator==(const base_uint& a, const base_uint& b) { return memcmp(a.pn, b.pn, sizeof(a.pn)) == 0; }
     friend inline bool operator!=(const base_uint& a, const base_uint& b) { return memcmp(a.pn, b.pn, sizeof(a.pn)) != 0; }
     friend inline bool operator>(const base_uint& a, const base_uint& b) { return a.CompareTo(b) > 0; }
@@ -242,9 +242,11 @@ public:
      */
     unsigned int bits() const;
 
+    base_uint ApproxNthRoot(int n) const;
+
     uint64_t GetLow64() const
     {
-        assert(WIDTH >= 2);
+        static_assert(WIDTH >= 2, "Assertion WIDTH >= 2 failed (WIDTH = BITS / 32). BITS is a template parameter.");
         return pn[0] | (uint64_t)pn[1] << 32;
     }
 };
@@ -272,12 +274,12 @@ public:
      * Thus 0x1234560000 is compact (0x05123456)
      * and  0xc0de000000 is compact (0x0600c0de)
      *
-     * Bitcoin only uses this "compact" format for encoding difficulty
+     * DigiByte only uses this "compact" format for encoding difficulty
      * targets, which are unsigned 256bit quantities.  Thus, all the
      * complexities of the sign bit and using base 256 are probably an
      * implementation accident.
      */
-    arith_uint256& SetCompact(uint32_t nCompact, bool *pfNegative = NULL, bool *pfOverflow = NULL);
+    arith_uint256& SetCompact(uint32_t nCompact, bool *pfNegative = nullptr, bool *pfOverflow = nullptr);
     uint32_t GetCompact(bool fNegative = false) const;
 
     friend uint256 ArithToUint256(const arith_uint256 &);
@@ -287,4 +289,4 @@ public:
 uint256 ArithToUint256(const arith_uint256 &);
 arith_uint256 UintToArith256(const uint256 &);
 
-#endif // BITCOIN_ARITH_UINT256_H
+#endif // DIGIBYTE_ARITH_UINT256_H

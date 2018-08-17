@@ -1,11 +1,11 @@
-// Copyright (c) 2009-2015 The Bitcoin Core developers
+// Copyright (c) 2009-2017 The DigiByte Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_CHECKPOINTS_H
-#define BITCOIN_CHECKPOINTS_H
+#ifndef DIGIBYTE_CHECKPOINTS_H
+#define DIGIBYTE_CHECKPOINTS_H
 
-#include "uint256.h"
+#include <uint256.h>
 
 #include <map>
 
@@ -19,11 +19,9 @@ struct CCheckpointData;
 namespace Checkpoints
 {
 
-//! Returns last CBlockIndex* in mapBlockIndex that is a checkpoint
+//! Returns last CBlockIndex* that is a checkpoint
 CBlockIndex* GetLastCheckpoint(const CCheckpointData& data);
-
-double GuessVerificationProgress(const CCheckpointData& data, CBlockIndex* pindex, bool fSigchecks = true);
 
 } //namespace Checkpoints
 
-#endif // BITCOIN_CHECKPOINTS_H
+#endif // DIGIBYTE_CHECKPOINTS_H

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (c) 2014-2016 The Bitcoin Core developers
+# Copyright (c) 2014-2017 The DigiByte Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -29,7 +29,7 @@ from .util import (
 from .authproxy import JSONRPCException
 
 
-class BitcoinTestFramework(object):
+class DigiByteTestFramework(object):
 
     def __init__(self):
         self.num_nodes = 4
@@ -47,7 +47,7 @@ class BitcoinTestFramework(object):
         if self.setup_clean_chain:
             initialize_chain_clean(self.options.tmpdir, self.num_nodes)
         else:
-            initialize_chain(self.options.tmpdir, self.num_nodes)
+            initialize_chain(self.options.tmpdir, self.num_nodes, self.options.cachedir)
 
     def stop_node(self, num_node):
         stop_node(self.nodes[num_node], num_node)
@@ -109,6 +109,8 @@ class BitcoinTestFramework(object):
                           help="Don't stop digibyteds after the test execution")
         parser.add_option("--srcdir", dest="srcdir", default=os.path.normpath(os.path.dirname(os.path.realpath(__file__))+"/../../../src"),
                           help="Source directory containing digibyted/digibyte-cli (default: %default)")
+        parser.add_option("--cachedir", dest="cachedir", default=os.path.normpath(os.path.dirname(os.path.realpath(__file__))+"/../../cache"),
+                          help="Directory for caching pregenerated datadirs")
         parser.add_option("--tmpdir", dest="tmpdir", default=tempfile.mkdtemp(prefix="test"),
                           help="Root directory for datadirs")
         parser.add_option("--tracerpc", dest="trace_rpc", default=False, action="store_true",
@@ -170,7 +172,16 @@ class BitcoinTestFramework(object):
                 os.rmdir(self.options.root)
         else:
             print("Not cleaning up dir %s" % self.options.tmpdir)
-
+            if os.getenv("PYTHON_DEBUG", ""):
+                # Dump the end of the debug logs, to aid in debugging rare
+                # travis failures.
+                import glob
+                filenames = glob.glob(self.options.tmpdir + "/node*/regtest/debug.log")
+                MAX_LINES_TO_PRINT = 1000
+                for f in filenames:
+                    print("From" , f, ":")
+                    from collections import deque
+                    print("".join(deque(open(f), MAX_LINES_TO_PRINT)))
         if success:
             print("Tests successful")
             sys.exit(0)
@@ -179,13 +190,13 @@ class BitcoinTestFramework(object):
             sys.exit(1)
 
 
-# Test framework for doing p2p comparison testing, which sets up some bitcoind
+# Test framework for doing p2p comparison testing, which sets up some digibyted
 # binaries:
 # 1 binary: test binary
 # 2 binaries: 1 test binary, 1 ref binary
 # n>2 binaries: 1 test binary, n-1 ref binaries
 
-class ComparisonTestFramework(BitcoinTestFramework):
+class ComparisonTestFramework(DigiByteTestFramework):
 
     def __init__(self):
         super().__init__()

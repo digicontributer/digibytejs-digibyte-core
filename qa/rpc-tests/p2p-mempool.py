@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-# Copyright (c) 2015-2016 The Bitcoin Core developers
+# Copyright (c) 2015-2017 The DigiByte Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 from test_framework.mininode import *
-from test_framework.test_framework import BitcoinTestFramework
+from test_framework.test_framework import DigiByteTestFramework
 from test_framework.util import *
-import time
 
 class TestNode(NodeConnCB):
     def __init__(self):
@@ -71,9 +70,12 @@ class TestNode(NodeConnCB):
         self.lastInv = []
         self.send_message(msg_mempool())
 
-class P2PMempoolTests(BitcoinTestFramework):
-    def setup_chain(self):
-        initialize_chain_clean(self.options.tmpdir, 2)
+class P2PMempoolTests(DigiByteTestFramework):
+
+    def __init__(self):
+        super().__init__()
+        self.setup_clean_chain = True
+        self.num_nodes = 2
 
     def setup_network(self):
         # Start a node with maxuploadtarget of 200 MB (/24h)

@@ -1,15 +1,17 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2015 The Bitcoin Core developers
+// Copyright (c) 2009-2017 The DigiByte Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "pow.h"
+#include <pow.h>
 
-#include "arith_uint256.h"
-#include "chain.h"
-#include "primitives/block.h"
-#include "uint256.h"
-#include "util.h"
+#include <arith_uint256.h>
+#include <chain.h>
+#include <primitives/block.h>
+#include <uint256.h>
+#include <chainparams.h>
+
+#include "util.h" //just for logs
 
 unsigned int GetNextWorkRequiredV1(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params& params, int algo)
 {
@@ -25,11 +27,11 @@ unsigned int GetNextWorkRequiredV1(const CBlockIndex* pindexLast, const CBlockHe
 	int64_t retargetInterval = params.nInterval;
 
 	// Genesis block
-	if (pindexLast == NULL)
+	if (pindexLast == nullptr)
 		return npowWorkLimit;
 
 	//if v2.0 changes are in effect for block num, alter retarget values
-	if(fNewDifficultyProtocol) {
+	if(fNewDifficultyProtocol && !params.fPowAllowMinDifficultyBlocks) {
 		LogPrintf("GetNextWorkRequired nActualTimespan Limiting\n");
 		retargetTimespan = params.nTargetTimespanRe;
 		//retargetSpacing = nTargetSpacingRe;
@@ -39,6 +41,22 @@ unsigned int GetNextWorkRequiredV1(const CBlockIndex* pindexLast, const CBlockHe
 	// Only change once per interval
 	if ((pindexLast->nHeight+1) % retargetInterval != 0)
 	{
+		if (params.fPowAllowMinDifficultyBlocks)
+		{
+			// Special difficulty rule for testnet:
+			// If the new block's timestamp is more than 2* 10 minutes
+			// then allow mining of a min-difficulty block.
+			if (pblock->nTime > pindexLast->nTime + params.nTargetSpacing*2)
+				return npowWorkLimit;
+			else
+			{
+				// Return the last non-special-min-difficulty-rules-block
+				const CBlockIndex* pindex = pindexLast;
+				while (pindex->pprev && pindex->nHeight % retargetInterval != 0 && pindex->nBits == npowWorkLimit)
+					pindex = pindex->pprev;
+				return pindex->nBits;
+			}
+		}
 		return pindexLast->nBits;
 	}
 
@@ -56,11 +74,9 @@ unsigned int GetNextWorkRequiredV1(const CBlockIndex* pindexLast, const CBlockHe
 
 	// Limit adjustment step
 	int64_t nActualTimespan = pindexLast->GetBlockTime() - pindexFirst->GetBlockTime();
-	LogPrintf("nActualTimespan = %d  before bounds\n", nActualTimespan);
 
 	// thanks to RealSolid & WDC for this code
-	if(fNewDifficultyProtocol) {
-		LogPrintf("GetNextWorkRequired nActualTimespan Limiting\n");
+	if(fNewDifficultyProtocol && !params.fPowAllowMinDifficultyBlocks) {
 		if (nActualTimespan < (retargetTimespan - (retargetTimespan/4)) ) nActualTimespan = (retargetTimespan - (retargetTimespan/4));
 		if (nActualTimespan > (retargetTimespan + (retargetTimespan/2)) ) nActualTimespan = (retargetTimespan + (retargetTimespan/2));
 	}
@@ -80,7 +96,6 @@ unsigned int GetNextWorkRequiredV1(const CBlockIndex* pindexLast, const CBlockHe
 		bnNew = UintToArith256(params.powLimit);
 
 	// debug print
-	LogPrintf("GetNextWorkRequired RETARGET\n");
 	LogPrintf("nTargetTimespan = %d    nActualTimespan = %d\n", retargetTimespan, nActualTimespan);
 	LogPrintf("Before: %08x  %s\n", pindexLast->nBits, ArithToUint256(bnBefore).ToString());
 	LogPrintf("After:  %08x  %s\n", bnNew.GetCompact(), ArithToUint256(bnNew).ToString());
@@ -93,10 +108,26 @@ unsigned int GetNextWorkRequiredV2(const CBlockIndex* pindexLast, const CBlockHe
 
 	unsigned int npowWorkLimit = UintToArith256(params.powLimit).GetCompact();
 
-	if (pindexLast == NULL)
+	if (pindexLast == nullptr)
 		return npowWorkLimit;
 
-	LogPrintf("GetNextWorkRequired RETARGET\n");
+	if (params.fPowAllowMinDifficultyBlocks)
+	{
+		// Special difficulty rule for testnet:
+		// If the new block's timestamp is more than 2* 10 minutes
+		// then allow mining of a min-difficulty block.
+		if (pblock->nTime > pindexLast->nTime + params.nTargetSpacing*2)
+			return npowWorkLimit;
+		else
+		{
+			// Return the last non-special-min-difficulty-rules-block
+			const CBlockIndex* pindex = pindexLast;
+			while (pindex->pprev && pindex->nHeight % params.nInterval != 0 && pindex->nBits == npowWorkLimit)
+				pindex = pindex->pprev;
+			return pindex->nBits;
+		}
+	}
+
 	LogPrintf("Height (Before): %s\n", pindexLast->nHeight);
 
 	// find previous block with same algo
@@ -111,7 +142,7 @@ unsigned int GetNextWorkRequiredV2(const CBlockIndex* pindexLast, const CBlockHe
 		pindexFirst = GetLastBlockIndexForAlgo(pindexFirst, algo);
 	}
 
-	if (pindexFirst == NULL)
+	if (pindexFirst == nullptr)
 	{
 		LogPrintf("Use default POW Limit\n");
 		return npowWorkLimit;
@@ -119,7 +150,6 @@ unsigned int GetNextWorkRequiredV2(const CBlockIndex* pindexLast, const CBlockHe
 
 	// Limit adjustment step
 	int64_t nActualTimespan = pindexPrev->GetBlockTime() - pindexFirst->GetBlockTime();
-	LogPrintf("nActualTimespan = %d before bounds\n", nActualTimespan);
 	if (nActualTimespan < params.nMinActualTimespan)
 		nActualTimespan = params.nMinActualTimespan;
 	if (nActualTimespan > params.nMaxActualTimespan)
@@ -146,8 +176,25 @@ unsigned int GetNextWorkRequiredV3(const CBlockIndex* pindexLast, const CBlockHe
 	unsigned int npowWorkLimit = UintToArith256(params.powLimit).GetCompact();
 
 	// Genesis block
-	if (pindexLast == NULL)
+	if (pindexLast == nullptr)
 		return npowWorkLimit;
+
+	if (params.fPowAllowMinDifficultyBlocks)
+	{
+		// Special difficulty rule for testnet:
+		// If the new block's timestamp is more than 2* 10 minutes
+		// then allow mining of a min-difficulty block.
+		if (pblock->nTime > pindexLast->nTime + params.nTargetSpacing*2)
+			return npowWorkLimit;
+		else
+		{
+			// Return the last non-special-min-difficulty-rules-block
+			const CBlockIndex* pindex = pindexLast;
+			while (pindex->pprev && pindex->nHeight % params.nInterval != 0 && pindex->nBits == npowWorkLimit)
+				pindex = pindex->pprev;
+			return pindex->nBits;
+		}
+	}
 
 	// find first block in averaging interval
 	// Go back by what we want to be nAveragingInterval blocks per algo
@@ -157,14 +204,13 @@ unsigned int GetNextWorkRequiredV3(const CBlockIndex* pindexLast, const CBlockHe
 		pindexFirst = pindexFirst->pprev;
 	}
 	const CBlockIndex* pindexPrevAlgo = GetLastBlockIndexForAlgo(pindexLast, algo);
-	if (pindexPrevAlgo == NULL || pindexFirst == NULL)
+	if (pindexPrevAlgo == nullptr || pindexFirst == nullptr)
 		return npowWorkLimit; // not enough blocks available
 
 	// Limit adjustment step
 	// Use medians to prevent time-warp attacks
 	int64_t nActualTimespan = pindexLast->GetMedianTimePast() - pindexFirst->GetMedianTimePast();
 	nActualTimespan = params.nAveragingTargetTimespan + (nActualTimespan - params.nAveragingTargetTimespan)/6;
-	LogPrintf("  nActualTimespan = %d before bounds\n", nActualTimespan);
 	if (nActualTimespan < params.nMinActualTimespanV3)
 		nActualTimespan = params.nMinActualTimespanV3;
 	if (nActualTimespan > params.nMaxActualTimespanV3)
@@ -207,9 +253,25 @@ unsigned int GetNextWorkRequiredV4(const CBlockIndex* pindexLast, const CBlockHe
 	unsigned int npowWorkLimit = UintToArith256(params.powLimit).GetCompact();
 
 	// Genesis block
-	if (pindexLast == NULL)
+	if (pindexLast == nullptr)
 		return npowWorkLimit;
 
+	if (params.fPowAllowMinDifficultyBlocks)
+	{
+		// Special difficulty rule for testnet:
+		// If the new block's timestamp is more than 2* 10 minutes
+		// then allow mining of a min-difficulty block.
+		if (pblock->nTime > pindexLast->nTime + params.nTargetSpacing*2)
+			return npowWorkLimit;
+		else
+		{
+			// Return the last non-special-min-difficulty-rules-block
+			const CBlockIndex* pindex = pindexLast;
+			while (pindex->pprev && pindex->nHeight % params.nInterval != 0 && pindex->nBits == npowWorkLimit)
+				pindex = pindex->pprev;
+			return pindex->nBits;
+		}
+	}
 
 	// find first block in averaging interval
 	// Go back by what we want to be nAveragingInterval blocks per algo
@@ -220,7 +282,7 @@ unsigned int GetNextWorkRequiredV4(const CBlockIndex* pindexLast, const CBlockHe
 	}
 
 	const CBlockIndex* pindexPrevAlgo = GetLastBlockIndexForAlgo(pindexLast, algo);
-	if (pindexPrevAlgo == NULL || pindexFirst == NULL)
+	if (pindexPrevAlgo == nullptr || pindexFirst == nullptr)
 	{
 		return npowWorkLimit;
 	}
@@ -294,20 +356,12 @@ unsigned int CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nF
         nActualTimespan = params.nPowTargetTimespan*4;
 
     // Retarget
+    const arith_uint256 bnPowLimit = UintToArith256(params.powLimit);
     arith_uint256 bnNew;
-    arith_uint256 bnOld;
     bnNew.SetCompact(pindexLast->nBits);
-    bnOld = bnNew;
-    // DigiByte: intermediate uint256 can overflow by 1 bit
-    bool fShift = bnNew.bits() > 235;
-    if (fShift)
-        bnNew >>= 1;
     bnNew *= nActualTimespan;
     bnNew /= params.nPowTargetTimespan;
-    if (fShift)
-        bnNew <<= 1;
 
-    const arith_uint256 bnPowLimit = UintToArith256(params.powLimit);
     if (bnNew > bnPowLimit)
         bnNew = bnPowLimit;
 
@@ -338,10 +392,10 @@ const CBlockIndex* GetLastBlockIndexForAlgo(const CBlockIndex* pindex, int algo)
 	for (;;)
 	{
 		if (!pindex)
-			return NULL;
+			return nullptr;
 		if (pindex->GetAlgo() == algo)
 			return pindex;
 		pindex = pindex->pprev;
 	}
-	return NULL;
+	return nullptr;
 }

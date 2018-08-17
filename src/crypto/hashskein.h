@@ -1,5 +1,5 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2012 The Bitcoin developers
+// Copyright (c) 2009-2012 The DigiByte developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #ifndef HASH_SKEIN
@@ -7,7 +7,7 @@
 
 #include "uint256.h"
 #include "serialize.h"
-#include "sph_skein.h"
+#include "crypto/sph_skein.h"
 
 #include <openssl/sha.h>
 #include <openssl/ripemd.h>

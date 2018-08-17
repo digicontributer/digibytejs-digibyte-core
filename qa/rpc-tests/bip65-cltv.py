@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (c) 2015-2016 The Bitcoin Core developers
+# Copyright (c) 2015-2017 The DigiByte Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -7,10 +7,10 @@
 # Test the CHECKLOCKTIMEVERIFY (BIP65) soft-fork logic
 #
 
-from test_framework.test_framework import BitcoinTestFramework
+from test_framework.test_framework import DigiByteTestFramework
 from test_framework.util import *
 
-class BIP65Test(BitcoinTestFramework):
+class BIP65Test(DigiByteTestFramework):
     def __init__(self):
         super().__init__()
         self.num_nodes = 3
@@ -30,7 +30,8 @@ class BIP65Test(BitcoinTestFramework):
         cnt = self.nodes[0].getblockcount()
 
         # Mine some old-version blocks
-        self.nodes[1].generate(100)
+        self.nodes[1].generate(200)
+        cnt += 100
         self.sync_all()
         if (self.nodes[0].getblockcount() != cnt + 100):
             raise AssertionError("Failed to mine 100 version=3 blocks")

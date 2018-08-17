@@ -1,9 +1,9 @@
-// Copyright (c) 2009-2016 The Bitcoin Core developers
+// Copyright (c) 2009-2016 The DigiByte Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_RPCREGISTER_H
-#define BITCOIN_RPCREGISTER_H
+#ifndef DIGIBYTE_RPC_REGISTER_H
+#define DIGIBYTE_RPC_REGISTER_H
 
 /** These are in one header file to avoid creating tons of single-function
  * headers for everything under src/rpc/ */
@@ -20,13 +20,13 @@ void RegisterMiningRPCCommands(CRPCTable &tableRPC);
 /** Register raw transaction RPC commands */
 void RegisterRawTransactionRPCCommands(CRPCTable &tableRPC);
 
-static inline void RegisterAllCoreRPCCommands(CRPCTable &tableRPC)
+static inline void RegisterAllCoreRPCCommands(CRPCTable &t)
 {
-    RegisterBlockchainRPCCommands(tableRPC);
-    RegisterNetRPCCommands(tableRPC);
-    RegisterMiscRPCCommands(tableRPC);
-    RegisterMiningRPCCommands(tableRPC);
-    RegisterRawTransactionRPCCommands(tableRPC);
+    RegisterBlockchainRPCCommands(t);
+    RegisterNetRPCCommands(t);
+    RegisterMiscRPCCommands(t);
+    RegisterMiningRPCCommands(t);
+    RegisterRawTransactionRPCCommands(t);
 }
 
-#endif
+#endif // DIGIBYTE_RPC_REGISTER_H

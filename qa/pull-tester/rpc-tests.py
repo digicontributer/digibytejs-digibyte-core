@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (c) 2014-2016 The Bitcoin Core developers
+# Copyright (c) 2014-2017 The DigiByte Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -17,7 +17,7 @@ than:
       interface.
 
 For a description of arguments recognized by test scripts, see
-`qa/pull-tester/test_framework/test_framework.py:BitcoinTestFramework.main`.
+`qa/pull-tester/test_framework/test_framework.py:DigiByteTestFramework.main`.
 
 """
 
@@ -43,8 +43,8 @@ RPC_TESTS_DIR = SRCDIR + '/qa/rpc-tests/'
 #If imported values are not defined then set to zero (or disabled)
 if 'ENABLE_WALLET' not in vars():
     ENABLE_WALLET=0
-if 'ENABLE_BITCOIND' not in vars():
-    ENABLE_BITCOIND=0
+if 'ENABLE_DIGIBYTED' not in vars():
+    ENABLE_DIGIBYTED=0
 if 'ENABLE_UTILS' not in vars():
     ENABLE_UTILS=0
 if 'ENABLE_ZMQ' not in vars():
@@ -77,17 +77,15 @@ for arg in sys.argv[1:]:
 #Set env vars
 if "DIGIBYTED" not in os.environ:
     os.environ["DIGIBYTED"] = BUILDDIR + '/src/digibyted' + EXEEXT
-if "DIGIBYTECLI" not in os.environ:
-    os.environ["DIGIBYTECLI"] = BUILDDIR + '/src/digibyte-cli' + EXEEXT
 
 if EXEEXT == ".exe" and "-win" not in opts:
-    # https://github.com/bitcoin/bitcoin/commit/d52802551752140cf41f0d9a225a43e84404d3e9
-    # https://github.com/bitcoin/bitcoin/pull/5677#issuecomment-136646964
+    # https://github.com/digibyte/digibyte/commit/d52802551752140cf41f0d9a225a43e84404d3e9
+    # https://github.com/digibyte/digibyte/pull/5677#issuecomment-136646964
     print("Win tests currently disabled by default.  Use -win option to enable")
     sys.exit(0)
 
-if not (ENABLE_WALLET == 1 and ENABLE_UTILS == 1 and ENABLE_BITCOIND == 1):
-    print("No rpc tests to run. Wallet, utils, and bitcoind must all be enabled")
+if not (ENABLE_WALLET == 1 and ENABLE_UTILS == 1 and ENABLE_DIGIBYTED == 1):
+    print("No rpc tests to run. Wallet, utils, and digibyted must all be enabled")
     sys.exit(0)
 
 # python3-zmq may not be installed. Handle this gracefully and with some helpful info
@@ -102,79 +100,93 @@ if ENABLE_ZMQ:
 
 testScripts = [
     # longest test should go first, to favor running tests in parallel
-    'p2p-fullblocktest.py',
-    'walletbackup.py',
-    'bip68-112-113-p2p.py',
-    'wallet.py',
     'wallet-hd.py',
+    'walletbackup.py',
+    # vv Tests less than 5m vv
+    'p2p-fullblocktest.py',
+    'fundrawtransaction.py',
+    'p2p-compactblocks.py',
+    'segwit.py',
+    # vv Tests less than 2m vv
+    'wallet.py',
+    'wallet-accounts.py',
+    'p2p-segwit.py',
     'wallet-dump.py',
     'listtransactions.py',
+    # vv Tests less than 60s vv
+    'sendheaders.py',
+    'zapwallettxes.py',
+    'importmulti.py',
+    'mempool_limit.py',
+    'merkle_blocks.py',
     'receivedby.py',
+    'abandonconflict.py',
+    'bip68-112-113-p2p.py',
+    'rawtransactions.py',
+    'reindex.py',
+    # vv Tests less than 30s vv
     'mempool_resurrect_test.py',
     'txn_doublespend.py --mineblock',
     'txn_clone.py',
     'getchaintips.py',
-    'rawtransactions.py',
     'rest.py',
     'mempool_spendcoinbase.py',
     'mempool_reorg.py',
-    'mempool_limit.py',
     'httpbasics.py',
     'multi_rpc.py',
-    'zapwallettxes.py',
     'proxy_test.py',
-    'merkle_blocks.py',
-    'fundrawtransaction.py',
     'signrawtransactions.py',
     'nodehandling.py',
-    'reindex.py',
-    'addressindex.py',
-    'timestampindex.py',
-    'spentindex.py',
-    'txindex.py',
     'decodescript.py',
     'blockchain.py',
     'disablewallet.py',
-    'sendheaders.py',
     'keypool.py',
+    'p2p-mempool.py',
     'prioritise_transaction.py',
     'invalidblockrequest.py',
     'invalidtxrequest.py',
-    'abandonconflict.py',
     'p2p-versionbits-warning.py',
-    'p2p-segwit.py',
-    'segwit.py',
+    'preciousblock.py',
     'importprunedfunds.py',
     'signmessages.py',
-    'p2p-compactblocks.py',
     'nulldummy.py',
-    'test_script_address2.py'
+    'import-rescan.py',
+    'bumpfee.py',
+    'rpcnamedargs.py',
+    'listsinceblock.py',
+    'p2p-leaktests.py',
 ]
 if ENABLE_ZMQ:
     testScripts.append('zmq_test.py')
 
 testScriptsExt = [
+    'pruning.py',
+    # vv Tests less than 20m vv
+    'smartfees.py',
+    # vv Tests less than 5m vv
+    'maxuploadtarget.py',
+    'mempool_packages.py',
+    # vv Tests less than 2m vv
+    'bip68-sequence.py',
+    'getblocktemplate_longpoll.py',
+    'p2p-timeouts.py',
+    # vv Tests less than 60s vv
     'bip9-softforks.py',
+    'p2p-feefilter.py',
+    'rpcbind_test.py',
+    # vv Tests less than 30s vv
     'bip65-cltv.py',
     'bip65-cltv-p2p.py',
-    'bip68-sequence.py',
     'bipdersig-p2p.py',
     'bipdersig.py',
-    'getblocktemplate_longpoll.py',
     'getblocktemplate_proposals.py',
     'txn_doublespend.py',
     'txn_clone.py --mineblock',
     'forknotify.py',
     'invalidateblock.py',
-    'rpcbind_test.py',
-    'smartfees.py',
     'maxblocksinflight.py',
     'p2p-acceptblock.py',
-    'mempool_packages.py',
-    'maxuploadtarget.py',
     'replace-by-fee.py',
-    'p2p-feefilter.py',
-    'pruning.py', # leave pruning last as it takes a REALLY long time
 ]
 
 
@@ -200,6 +212,7 @@ def runtests():
         coverage = RPCCoverage()
         print("Initializing coverage directory at %s\n" % coverage.dir)
     flags = ["--srcdir=%s/src" % BUILDDIR] + passon_args
+    flags.append("--cachedir=%s/qa/cache" % BUILDDIR)
     if coverage:
         flags.append(coverage.flag)
 
@@ -220,8 +233,8 @@ def runtests():
         time_sum += duration
 
         print('\n' + BOLD[1] + name + BOLD[0] + ":")
-        print(stdout)
-        print('stderr:\n' if not stderr == '' else '', stderr)
+        print('' if passed else stdout + '\n', end='')
+        print('' if stderr == '' else 'stderr:\n' + stderr + '\n', end='')
         results += "%s | %s | %s s\n" % (name.ljust(max_len_name), str(passed).ljust(6), duration)
         print("Pass: %s%s%s, Duration: %s s\n" % (BOLD[1], passed, BOLD[0], duration))
     results += BOLD[1] + "\n%s | %s | %s s (accumulated)" % ("ALL".ljust(max_len_name), str(all_passed).ljust(6), time_sum) + BOLD[0]
@@ -248,7 +261,7 @@ class RPCTestHandler:
         self.test_list = test_list
         self.flags = flags
         self.num_running = 0
-        # In case there is a graveyard of zombie bitcoinds, we can apply a
+        # In case there is a graveyard of zombie digibyteds, we can apply a
         # pseudorandom offset to hopefully jump over them.
         # (625 is PORT_RANGE/MAX_NODES)
         self.portseed_offset = int(time.time() * 1000) % 625
@@ -295,7 +308,7 @@ class RPCCoverage(object):
     Coverage calculation works by having each test script subprocess write
     coverage files into a particular directory. These files contain the RPC
     commands invoked during testing, as well as a complete listing of RPC
-    commands per `bitcoin-cli help` (`rpc_interface.txt`).
+    commands per `digibyte-cli help` (`rpc_interface.txt`).
 
     After all tests complete, the commands run are combined and diff'd against
     the complete list to calculate uncovered RPC commands.

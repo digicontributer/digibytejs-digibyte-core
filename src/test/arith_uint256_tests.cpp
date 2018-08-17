@@ -1,4 +1,4 @@
-// Copyright (c) 2011-2015 The Bitcoin Core developers
+// Copyright (c) 2011-2017 The DigiByte Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -8,16 +8,16 @@
 #include <iomanip>
 #include <limits>
 #include <cmath>
-#include "uint256.h"
-#include "arith_uint256.h"
+#include <uint256.h>
+#include <arith_uint256.h>
 #include <string>
-#include "version.h"
-#include "test/test_bitcoin.h"
+#include <version.h>
+#include <test/test_digibyte.h>
 
 BOOST_FIXTURE_TEST_SUITE(arith_uint256_tests, BasicTestingSetup)
 
 /// Convert vector to arith_uint256, via uint256 blob
-inline arith_uint256 arith_uint256V(const std::vector<unsigned char>& vch)
+static inline arith_uint256 arith_uint256V(const std::vector<unsigned char>& vch)
 {
     return UintToArith256(uint256(vch));
 }
@@ -53,7 +53,7 @@ const unsigned char MaxArray[] =
 const arith_uint256 MaxL = arith_uint256V(std::vector<unsigned char>(MaxArray,MaxArray+32));
 
 const arith_uint256 HalfL = (OneL << 255);
-std::string ArrayToString(const unsigned char A[], unsigned int width)
+static std::string ArrayToString(const unsigned char A[], unsigned int width)
 {
     std::stringstream Stream;
     Stream << std::hex;
@@ -122,7 +122,7 @@ BOOST_AUTO_TEST_CASE( basics ) // constructors, equality, inequality
     tmpL = ~MaxL; BOOST_CHECK(tmpL == ~MaxL);
 }
 
-void shiftArrayRight(unsigned char* to, const unsigned char* from, unsigned int arrayLength, unsigned int bitsToShift)
+static void shiftArrayRight(unsigned char* to, const unsigned char* from, unsigned int arrayLength, unsigned int bitsToShift)
 {
     for (unsigned int T=0; T < arrayLength; ++T)
     {
@@ -136,7 +136,7 @@ void shiftArrayRight(unsigned char* to, const unsigned char* from, unsigned int 
     }
 }
 
-void shiftArrayLeft(unsigned char* to, const unsigned char* from, unsigned int arrayLength, unsigned int bitsToShift)
+static void shiftArrayLeft(unsigned char* to, const unsigned char* from, unsigned int arrayLength, unsigned int bitsToShift)
 {
     for (unsigned int T=0; T < arrayLength; ++T)
     {
@@ -198,13 +198,6 @@ BOOST_AUTO_TEST_CASE( shifts ) { // "<<"  ">>"  "<<="  ">>="
 
 BOOST_AUTO_TEST_CASE( unaryOperators ) // !    ~    -
 {
-    BOOST_CHECK(!ZeroL);
-    BOOST_CHECK(!(!OneL));
-    for (unsigned int i = 0; i < 256; ++i)
-        BOOST_CHECK(!(!(OneL<<i)));
-    BOOST_CHECK(!(!R1L));
-    BOOST_CHECK(!(!MaxL));
-
     BOOST_CHECK(~ZeroL == MaxL);
 
     unsigned char TmpArray[32];
@@ -219,7 +212,7 @@ BOOST_AUTO_TEST_CASE( unaryOperators ) // !    ~    -
 
 
 // Check if doing _A_ _OP_ _B_ results in the same as applying _OP_ onto each
-// element of Aarray and Barray, and then converting the result into a arith_uint256.
+// element of Aarray and Barray, and then converting the result into an arith_uint256.
 #define CHECKBITWISEOPERATOR(_A_,_B_,_OP_)                              \
     for (unsigned int i = 0; i < 32; ++i) { TmpArray[i] = _A_##Array[i] _OP_ _B_##Array[i]; } \
     BOOST_CHECK(arith_uint256V(std::vector<unsigned char>(TmpArray,TmpArray+32)) == (_A_##L _OP_ _B_##L));
@@ -366,10 +359,60 @@ BOOST_AUTO_TEST_CASE( divide )
     BOOST_CHECK(R2L / MaxL == ZeroL);
     BOOST_CHECK(MaxL / R2L == 1);
     BOOST_CHECK_THROW(R2L / ZeroL, uint_error);
+
+    uint32_t nInts[4] = {1u, 0x88eu, 0x36cb6079u, 0xf6b4a385u};
+    for (int i = 0; i < 4; i++)
+    {
+        BOOST_CHECK((R1L / nInts[i]) == (R1L / arith_uint256(nInts[i])));
+        BOOST_CHECK((R2L / nInts[i]) == (R2L / arith_uint256(nInts[i])));
+        BOOST_CHECK((MaxL / nInts[i]) == (MaxL / arith_uint256(nInts[i])));
+    }
+    BOOST_CHECK_THROW(R2L / 0, uint_error);
 }
 
+void CheckNthRoot(arith_uint256 x, int n)
+{
+    arith_uint256 root = x.ApproxNthRoot(n);
+    arith_uint256 power = 1;
+    arith_uint256 penultimate = 1;
+    for (int i = 0; i < n; i++)
+    {
+        penultimate = power;
+        power *= root;
+    }
+    // second condition is overflow check
+    BOOST_CHECK(power <= x && power / root == penultimate);
+    int roundingPos = std::max<int>(0, root.bits() - 64/n);
+    root += OneL << roundingPos;
+    // root should be too big now
+    power = 1;
+    for (int i = 0; i < n; i++)
+    {
+        penultimate = power;
+        power *= root;
+    }
+    BOOST_CHECK(!(power <= x && power / root == penultimate));
+}
 
-bool almostEqual(double d1, double d2)
+BOOST_AUTO_TEST_CASE( root )
+{
+    for (int n = 2; n <= 5; n++)
+    {
+        BOOST_CHECK(ZeroL.ApproxNthRoot(n) == ZeroL);
+        for (int shift = 0; shift < 2*n; shift++)
+        {
+            CheckNthRoot(MaxL >> shift, n);
+            CheckNthRoot(R1L >> shift, n);
+            CheckNthRoot(R2L >> shift, n);
+        }
+        for (int shift = 0; shift < 70; shift++)
+        {
+            CheckNthRoot(OneL << shift, n);
+        }
+    }
+}
+
+static bool almostEqual(double d1, double d2)
 {
     return fabs(d1-d2) <= 4*fabs(d1)*std::numeric_limits<double>::epsilon();
 }

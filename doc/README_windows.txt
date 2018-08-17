@@ -1,5 +1,6 @@
-DigiByte Core 0.13.2
-=====================
+=======
+DigiByte Core
+=============
 
 Intro
 -----
@@ -19,5 +20,5 @@ depending on the speed of your computer and network connection, the synchronizat
 process can take anywhere from a few hours to a day or more.
 
 See the digibyte wiki at:
-  https://digibyte.info/
+  https://en.digibyte.it/wiki/Main_Page
 for more help and information.

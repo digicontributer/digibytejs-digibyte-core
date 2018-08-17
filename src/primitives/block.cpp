@@ -1,18 +1,21 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2015 The Bitcoin Core developers
+// Copyright (c) 2009-2017 The DigiByte Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "primitives/block.h"
-
-#include "hash.h"
-#include "crypto/hashgroestl.h"
-#include "crypto/hashqubit.h"
-#include "crypto/hashskein.h"
-#include "crypto/scrypt.h"
-#include "tinyformat.h"
-#include "utilstrencodings.h"
-#include "crypto/common.h"
+#include <primitives/block.h>
+#include <utilstrencodings.h>
+#include <crypto/common.h>
+#include <crypto/hashgroestl.h>
+#include <crypto/hashqubit.h>
+#include <crypto/hashskein.h>
+#include <crypto/scrypt.h>
+#include <consensus/consensus.h>
+#include <util.h>
+#include <hash.h>
+#include <tinyformat.h>
+#include <utilstrencodings.h>
+#include <crypto/common.h>
 
 uint256 CBlockHeader::GetHash() const
 {
@@ -23,7 +26,7 @@ int CBlockHeader::GetAlgo() const
 {
     switch (nVersion & BLOCK_VERSION_ALGO)
     {
-        case 1:
+        case BLOCK_VERSION_SCRYPT:
             return ALGO_SCRYPT;
         case BLOCK_VERSION_SHA256D:
             return ALGO_SHA256D;
@@ -33,12 +36,17 @@ int CBlockHeader::GetAlgo() const
             return ALGO_SKEIN;
         case BLOCK_VERSION_QUBIT:
             return ALGO_QUBIT;
+        //case BLOCK_VERSION_EQUIHASH:
+            //return ALGO_EQUIHASH;
+        //case BLOCK_VERSION_ETHASH:
+            //return ALGO_ETHASH;
     }
     return ALGO_SCRYPT;
 }
 
 uint256 CBlockHeader::GetPoWAlgoHash(int algo) const
 {
+    assert(algo == GetAlgo()); // why is this even an argument?
     switch (algo)
     {
         case ALGO_SHA256D:
@@ -55,6 +63,10 @@ uint256 CBlockHeader::GetPoWAlgoHash(int algo) const
             return HashSkein(BEGIN(nVersion), END(nNonce));
         case ALGO_QUBIT:
             return HashQubit(BEGIN(nVersion), END(nNonce));
+        //case ALGO_EQUIHASH:
+            //return HashEquihash(BEGIN(nVersion), END(nNonce));
+        //case ALGO_ETHASH:
+            //return HashEthash(BEGIN(nVersion), END(nNonce));
     }
     return GetHash();
 }
@@ -62,16 +74,17 @@ uint256 CBlockHeader::GetPoWAlgoHash(int algo) const
 std::string CBlock::ToString() const
 {
     std::stringstream s;
-    s << strprintf("CBlock(hash=%s, ver=0x%08x, hashPrevBlock=%s, hashMerkleRoot=%s, nTime=%u, nBits=%08x, nNonce=%u, vtx=%u)\n",
+    s << strprintf("CBlock(hash=%s, ver=0x%08x, pow_algo=%d, pow_hash=%s, hashPrevBlock=%s, hashMerkleRoot=%s, nTime=%u, nBits=%08x, nNonce=%u, vtx=%u)\n",
         GetHash().ToString(),
         nVersion,
+        GetAlgo(),
+        GetPoWAlgoHash(GetAlgo()).ToString(),
         hashPrevBlock.ToString(),
         hashMerkleRoot.ToString(),
         nTime, nBits, nNonce,
         vtx.size());
-    for (unsigned int i = 0; i < vtx.size(); i++)
-    {
-        s << "  " << vtx[i].ToString() << "\n";
+    for (const auto& tx : vtx) {
+        s << "  " << tx->ToString() << "\n";
     }
     return s.str();
 }

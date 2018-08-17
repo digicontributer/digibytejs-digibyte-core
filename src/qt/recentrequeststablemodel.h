@@ -1,17 +1,15 @@
-// Copyright (c) 2011-2015 The Bitcoin Core developers
+// Copyright (c) 2011-2017 The DigiByte Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_QT_RECENTREQUESTSTABLEMODEL_H
-#define BITCOIN_QT_RECENTREQUESTSTABLEMODEL_H
+#ifndef DIGIBYTE_QT_RECENTREQUESTSTABLEMODEL_H
+#define DIGIBYTE_QT_RECENTREQUESTSTABLEMODEL_H
 
-#include "walletmodel.h"
+#include <qt/walletmodel.h>
 
 #include <QAbstractTableModel>
 #include <QStringList>
 #include <QDateTime>
-
-class CWallet;
 
 class RecentRequestEntry
 {
@@ -27,11 +25,10 @@ public:
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+    inline void SerializationOp(Stream& s, Operation ser_action) {
         unsigned int nDate = date.toTime_t();
 
         READWRITE(this->nVersion);
-        nVersion = this->nVersion;
         READWRITE(id);
         READWRITE(nDate);
         READWRITE(recipient);
@@ -53,7 +50,7 @@ private:
     Qt::SortOrder order;
 };
 
-/** Model for list of recently generated payment requests / bitcoin: URIs.
+/** Model for list of recently generated payment requests / digibyte: URIs.
  * Part of wallet model.
  */
 class RecentRequestsTableModel: public QAbstractTableModel
@@ -61,7 +58,7 @@ class RecentRequestsTableModel: public QAbstractTableModel
     Q_OBJECT
 
 public:
-    explicit RecentRequestsTableModel(CWallet *wallet, WalletModel *parent);
+    explicit RecentRequestsTableModel(WalletModel *parent);
     ~RecentRequestsTableModel();
 
     enum ColumnIndex {
@@ -105,4 +102,4 @@ private:
     QString getAmountTitle();
 };
 
-#endif // BITCOIN_QT_RECENTREQUESTSTABLEMODEL_H
+#endif // DIGIBYTE_QT_RECENTREQUESTSTABLEMODEL_H

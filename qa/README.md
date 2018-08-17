@@ -11,17 +11,15 @@ Before running the tests, the following must be installed.
 
 Unix
 ----
-`python3-zmq` and `digibyte_scrypt` are required. On Ubuntu or Debian they can be installed via:
+The python3-zmq library is required. On Ubuntu or Debian it can be installed via:
 ```
 sudo apt-get install python3-zmq
-pip3 install digibyte_scrypt
 ```
 
 OS X
 ------
 ```
 pip3 install pyzmq
-pip3 install digibyte_scrypt
 ```
 
 Running tests
@@ -68,7 +66,7 @@ output (example: `PYTHON_DEBUG=1 qa/pull-tester/rpc-tests.py wallet`).
 A 200-block -regtest blockchain and wallets for four nodes
 is created the first time a regression test is run and
 is stored in the cache/ directory. Each node has 25 mature
-blocks (25*50=1250 BTC) in its wallet.
+blocks (25*50=1250 DGB) in its wallet.
 
 After the first run, the cache/ blockchain and wallets are
 copied into a temporary directory and used as the initial

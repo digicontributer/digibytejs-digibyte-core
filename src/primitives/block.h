@@ -1,14 +1,15 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2015 The Bitcoin Core developers
+// Copyright (c) 2009-2017 The DigiByte Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_PRIMITIVES_BLOCK_H
-#define BITCOIN_PRIMITIVES_BLOCK_H
+#ifndef DIGIBYTE_PRIMITIVES_BLOCK_H
+#define DIGIBYTE_PRIMITIVES_BLOCK_H
 
-#include "primitives/transaction.h"
-#include "serialize.h"
-#include "uint256.h"
+#include <primitives/transaction.h>
+#include <serialize.h>
+#include <uint256.h>
+#include <util.h>
 
 enum { 
     ALGO_SHA256D  = 0,
@@ -16,6 +17,8 @@ enum {
     ALGO_GROESTL  = 2,
     ALGO_SKEIN    = 3,
     ALGO_QUBIT    = 4,
+    //ALGO_EQUIHASH = 5,
+    //ALGO_ETHASH   = 6,
     NUM_ALGOS_IMPL };
 
 const int NUM_ALGOS = 5;
@@ -26,11 +29,13 @@ enum {
 
     // algo
     BLOCK_VERSION_ALGO           = (7 << 9),
-    BLOCK_VERSION_SCRYPT         = (1 << 9),
+    BLOCK_VERSION_SCRYPT         = (0 << 9),
     BLOCK_VERSION_SHA256D        = (1 << 9),
     BLOCK_VERSION_GROESTL        = (2 << 9),
     BLOCK_VERSION_SKEIN          = (3 << 9),
     BLOCK_VERSION_QUBIT          = (4 << 9),
+    //BLOCK_VERSION_EQUIHASH       = (5 << 9),
+    //BLOCK_VERSION_ETHASH         = (6 << 9),
 };
 
 std::string GetAlgoName(int Algo);
@@ -62,7 +67,7 @@ public:
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+    inline void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(this->nVersion);
         READWRITE(hashPrevBlock);
         READWRITE(hashMerkleRoot);
@@ -86,6 +91,7 @@ public:
         return (nBits == 0);
     }
 
+    // Set Algo to use
     inline void SetAlgo(int algo)
     {
         switch(algo)
@@ -105,6 +111,12 @@ public:
             case ALGO_QUBIT:
                 nVersion |= BLOCK_VERSION_QUBIT;
                 break;
+            //case ALGO_EQUIHASH:
+                //nVersion |= BLOCK_VERSION_EQUIHASH;
+                //break;
+            //case ALGO_ETHASH:
+                //nVersion |= BLOCK_VERSION_ETHASH;
+                //break;
             default:
                 break;
         }
@@ -127,7 +139,7 @@ class CBlock : public CBlockHeader
 {
 public:
     // network and disk
-    std::vector<CTransaction> vtx;
+    std::vector<CTransactionRef> vtx;
 
     // memory only
     mutable bool fChecked;
@@ -140,14 +152,14 @@ public:
     CBlock(const CBlockHeader &header)
     {
         SetNull();
-        *((CBlockHeader*)this) = header;
+        *(static_cast<CBlockHeader*>(this)) = header;
     }
 
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
-        READWRITE(*(CBlockHeader*)this);
+    inline void SerializationOp(Stream& s, Operation ser_action) {
+        READWRITEAS(CBlockHeader, *this);
         READWRITE(vtx);
     }
 
@@ -183,16 +195,14 @@ struct CBlockLocator
 
     CBlockLocator() {}
 
-    CBlockLocator(const std::vector<uint256>& vHaveIn)
-    {
-        vHave = vHaveIn;
-    }
+    explicit CBlockLocator(const std::vector<uint256>& vHaveIn) : vHave(vHaveIn) {}
 
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
-        if (!(nType & SER_GETHASH))
+    inline void SerializationOp(Stream& s, Operation ser_action) {
+        int nVersion = s.GetVersion();
+        if (!(s.GetType() & SER_GETHASH))
             READWRITE(nVersion);
         READWRITE(vHave);
     }
@@ -208,7 +218,4 @@ struct CBlockLocator
     }
 };
 
-/** Compute the consensus-critical block weight (see BIP 141). */
-int64_t GetBlockWeight(const CBlock& tx);
-
-#endif // BITCOIN_PRIMITIVES_BLOCK_H
+#endif // DIGIBYTE_PRIMITIVES_BLOCK_H
